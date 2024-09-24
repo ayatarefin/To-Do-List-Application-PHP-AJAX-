@@ -1,11 +1,16 @@
 <?php
 include('connection.php');
-$query = "SELECT * FROM task_list 
-WHERE user_id = '" . $_SESSION["user_id"] . "'
-ORDER BY task_id DESC";
 
-$result = mysqli_query($connect, $query) or die("SQL query failed");
+// Use prepared statements to avoid SQL injection
+$query = "SELECT * FROM task_list WHERE user_id = ? ORDER BY task_id DESC";
 
+if ($statement = $connect->prepare($query)) {
+    $statement->bind_param("i", $_SESSION["user_id"]);
+    $statement->execute();
+    $result = $statement->get_result();
+} else {
+    die("SQL query failed");
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +30,10 @@ $result = mysqli_query($connect, $query) or die("SQL query failed");
         .list-group-item {
             font-size: 26px;
         }
+
+        .completed-task {
+            text-decoration: line-through;
+        }
     </style>
 </head>
 
@@ -39,7 +48,7 @@ $result = mysqli_query($connect, $query) or die("SQL query failed");
                         <h3 class="panel-title">My To-Do List</h3>
                     </div>
                     <div class="col-md-3">
-
+                        <!-- Optionally you can add a filter or sorting buttons here -->
                     </div>
                 </div>
             </div>
@@ -49,19 +58,20 @@ $result = mysqli_query($connect, $query) or die("SQL query failed");
                     <div class="input-group">
                         <input type="text" name="task_name" id="task_name" class="form-control input-lg" autocomplete="off" placeholder="Title..." />
                         <div class="input-group-btn">
-                            <button type="submit" name="submit" id="submit" class="btn btn-success btn-lg"><span class="glyphicon glyphicon-plus"></span></button>
+                            <button type="submit" name="submit" id="submit" class="btn btn-success btn-lg">
+                                <span class="glyphicon glyphicon-plus"></span>
+                            </button>
                         </div>
                     </div>
                 </form>
                 <br />
                 <div class="list-group">
                     <?php
-                    foreach ($result as $row) {
-                        $style = '';
-                        if ($row["task_status"] == 'yes') {
-                            $style = 'text-decoration: line-through';
-                        }
-                        echo '<a href="#" style="' . $style . '" class="list-group-item" id="list-group-item-' . $row["task_id"] . '" data-id="' . $row["task_id"] . '">' . $row["task_details"] . ' <span class="badge" data-id="' . $row["task_id"] . '">X</span></a>';
+                    while ($row = $result->fetch_assoc()) {
+                        // Apply the 'completed-task' class if the task is marked as completed
+                        $class = ($row["task_status"] == 'yes') ? 'completed-task' : '';
+                        echo '<a href="#" class="list-group-item ' . $class . '" id="list-group-item-' . htmlspecialchars($row["task_id"]) . '" data-id="' . htmlspecialchars($row["task_id"]) . '">'
+                            . htmlspecialchars($row["task_details"]) . ' <span class="badge" data-id="' . htmlspecialchars($row["task_id"]) . '">X</span></a>';
                     }
                     ?>
                 </div>
@@ -69,6 +79,7 @@ $result = mysqli_query($connect, $query) or die("SQL query failed");
         </div>
     </div>
 
+    <script src="custom.js"></script>
 </body>
 
 </html>
