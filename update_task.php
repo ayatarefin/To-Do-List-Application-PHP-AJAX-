@@ -2,28 +2,30 @@
 include('connection.php');
 
 if (isset($_POST["task_id"])) {
+    $task_id = $_POST["task_id"];
+    $query = "SELECT task_status FROM task_list WHERE task_id = ?";
 
-    // Prepare the SQL query using placeholders
-    $query = "UPDATE task_list SET task_status = ? WHERE task_id = ?";
-
-    // Prepare the statement using mysqli
     if ($statement = $connect->prepare($query)) {
+        $statement->bind_param('i', $task_id);
+        $statement->execute();
+        $result = $statement->get_result();
+        $row = $result->fetch_assoc();
 
-        // Set the values you want to bind
-        $task_status = 'yes'; // Mark the task as completed
-        $task_id = $_POST["task_id"];
+        // Toggle task_status between 'yes' and 'no'
+        $new_status = ($row["task_status"] == 'yes') ? 'no' : 'yes';
 
-        // Bind the values to the placeholders (s for string, i for integer)
-        $statement->bind_param('si', $task_status, $task_id);
-
-        // Execute the statement
-        if ($statement->execute()) {
-            echo 'done';
-        } else {
-            echo 'Error updating task';
+        // Update the status in the database
+        $update_query = "UPDATE task_list SET task_status = ? WHERE task_id = ?";
+        if ($update_statement = $connect->prepare($update_query)) {
+            $update_statement->bind_param('si', $new_status, $task_id);
+            if ($update_statement->execute()) {
+                // Redirect back to the index page to refresh the tasks
+                header('Location: index.php');
+                exit();
+            } else {
+                echo 'Error updating task';
+            }
         }
-    } else {
-        echo 'Failed to prepare the statement';
     }
 }
 ?>
